@@ -38,6 +38,8 @@ Open and unauthenticated:
 - **Base URL:** `https://api-omalumme-prod.azure-api.net/FA-OmaLumme-Prod`
 - `GET /v1/priceFixOffers` — quarterly fixed price offerings (c/kWh, VAT info, date range)
 
+The API only returns the latest snapshot (`Export_date` is usually the previous day). There is no history: query parameters (e.g. `date`, `from`/`to`) are ignored, resource paths like `/v1/priceFixOffers/{id}` return 404, and the OmaLumme web app itself calls this endpoint with no parameters. Days the daily job misses can't be backfilled. For example, 17.–22.11.2026 are missing because of the PKS outage, and the Wayback Machine has no snapshots either.
+
 ### PKS (Pohjois-Karjalan Sähkö)
 
 **Currently broken (since Tue 17.11.2026; last stored data 16.11.2026):** PKS removed the public demo site. `live.pks.fi` is now a CNAME to `pkslive.pks.fi` (CloudFront, whose cert doesn't cover `live.pks.fi`, so TLS handshakes fail), which serves a new login-only customer portal (Akamon, Cognito auth + GraphQL). The `/demo` session and `/Api/...` endpoints below no longer exist. Because of this, the PKS fetch is non-fatal: on failure `store` saves Lumme data, prints a warning (a `::warning` annotation in GitHub Actions) and exits successfully. TLS errors are not retried. `backfill-pks` doesn't work until a new data source is found. Historical PKS data stays in `prices.db` and the report.
