@@ -15,7 +15,7 @@ Finnish electricity providers offer quarterly fixed-price contracts whose prices
 - Fetches all currently available fixed price offerings from Lumme Energia and PKS
 - Stores one snapshot per offer per day per provider in a SQLite database
 - Generates a self-contained HTML report with:
-  - Summary table of current prices from all providers
+  - Summary table of current prices from all providers (a provider whose data is behind the others is marked with its last update date)
   - Interactive line chart showing how offered prices have changed over time
   - Provider toggle to filter by Lumme, PKS, or both
 
