@@ -4,6 +4,8 @@ Track fixed electricity price offerings (*hintakiinnitykset*) from Finnish provi
 
 Prices are fetched daily from each provider's public API, stored in a SQLite database, and published as an interactive HTML report.
 
+> **Note:** PKS shut down its public demo API in November 2026, so PKS prices are no longer updated (last data 16.11.2026). Historical PKS data is still shown in the report. A failing PKS fetch only produces a warning and does not prevent Lumme prices from being stored.
+
 **[View the latest report](https://taskinen.github.io/hintakiinnitys/)**
 
 ## What it does

@@ -40,7 +40,9 @@ Open and unauthenticated:
 
 ### PKS (Pohjois-Karjalan Sähkö)
 
-Accessed via public demo session on old ASP.NET MVC site:
+**Currently broken (since Tue 17.11.2026; last stored data 16.11.2026):** PKS removed the public demo site. `live.pks.fi` is now a CNAME to `pkslive.pks.fi` (CloudFront, whose cert doesn't cover `live.pks.fi`, so TLS handshakes fail), which serves a new login-only customer portal (Akamon, Cognito auth + GraphQL). The `/demo` session and `/Api/...` endpoints below no longer exist. Because of this, the PKS fetch is non-fatal: on failure `store` saves Lumme data, prints a warning (a `::warning` annotation in GitHub Actions) and exits successfully. TLS errors are not retried. `backfill-pks` doesn't work until a new data source is found. Historical PKS data stays in `prices.db` and the report.
+
+Was accessed via public demo session on old ASP.NET MVC site:
 
 - **Base URL:** `https://live.pks.fi`
 - `GET /demo` — creates demo session (sets auth cookies)

@@ -1,3 +1,4 @@
+import os
 import sys
 
 from .client import fetch_offers
@@ -13,6 +14,14 @@ def _print_table(offers: list) -> None:
         print(
             f"{period:<25} {offer.price_vat0:>9.3f}c {offer.price_with_vat:>9.3f}c {offer.vat:>6.1f}% {offer.change:>7.3f}"
         )
+
+
+def _warn(title: str, message: str) -> None:
+    print(f"Warning: {title}: {message}", file=sys.stderr)
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        # Workflow command: shows as an annotation on the GitHub Actions run
+        escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::warning title={title}::{escaped}", flush=True)
 
 
 def main() -> None:
@@ -39,7 +48,13 @@ def main() -> None:
         return
 
     lumme_offers = fetch_offers()
-    pks_offers = fetch_pks_offers()
+
+    # PKS is optional: a failure there must not block storing Lumme data
+    try:
+        pks_offers = fetch_pks_offers()
+    except Exception as exc:
+        _warn("PKS fetch failed", str(exc) or type(exc).__name__)
+        pks_offers = []
 
     if command == "store":
         store_offers(lumme_offers)
