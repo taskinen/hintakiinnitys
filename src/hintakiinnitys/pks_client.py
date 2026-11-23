@@ -1,3 +1,4 @@
+import ssl
 import sys
 import time
 from dataclasses import dataclass
@@ -41,11 +42,34 @@ def _create_session() -> httpx.Client:
     return client
 
 
+def _json(resp: httpx.Response):
+    """Parse a JSON response, failing clearly if the API returned something else (e.g. HTML)."""
+    content_type = resp.headers.get("content-type", "")
+    if "json" not in content_type:
+        raise RuntimeError(
+            f"PKS API returned non-JSON response ({content_type or 'no content-type'}) "
+            f"from {resp.url}; the public API may have been removed"
+        )
+    return resp.json()
+
+
+def _is_tls_error(exc: BaseException) -> bool:
+    """True if the exception was caused by a TLS/SSL failure, which retrying won't fix."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ssl.SSLError):
+            return True
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def _fetch_periods(client: httpx.Client) -> list[_PKSPeriod]:
     resp = client.get(f"{BASE_URL}/Api/Periods/Available")
     resp.raise_for_status()
     periods = []
-    for p in resp.json():
+    for p in _json(resp):
         if p["PeriodType"] != 1 or not p["IsAvailable"]:
             continue
         season = p.get("Season")
@@ -70,13 +94,14 @@ def _fetch_periods(client: httpx.Client) -> list[_PKSPeriod]:
 def _fetch_current_vat(client: httpx.Client) -> float:
     resp = client.get(f"{BASE_URL}/Api/Periods/VatRates")
     resp.raise_for_status()
+    rates = _json(resp)
     now = datetime.now(timezone.utc)
-    for rate in resp.json():
+    for rate in rates:
         start = datetime.fromisoformat(rate["Start"])
         stop = datetime.fromisoformat(rate["Stop"])
         if start <= now <= stop:
             return rate["Rate"]
-    return resp.json()[-1]["Rate"]
+    return rates[-1]["Rate"]
 
 
 def _fetch_price_graph(
@@ -88,7 +113,7 @@ def _fetch_price_graph(
     resp = client.get(url)
     resp.raise_for_status()
     result: dict[str, float] = {}
-    for ts_str, price in resp.json().items():
+    for ts_str, price in _json(resp).items():
         dt = datetime.fromisoformat(ts_str)
         result[dt.strftime("%Y-%m-%d")] = price
     return result
@@ -114,7 +139,7 @@ def fetch_pks_offers() -> list[PriceFixOffer]:
             _log_retry(attempt, wait, f"HTTP {exc.response.status_code}")
 
         except httpx.TransportError as exc:
-            if attempt == MAX_ATTEMPTS:
+            if attempt == MAX_ATTEMPTS or _is_tls_error(exc):
                 raise
             _log_retry(attempt, wait, str(exc) or type(exc).__name__)
 
