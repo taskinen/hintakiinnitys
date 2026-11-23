@@ -35,6 +35,11 @@ def generate_report(path: Path = DB_PATH) -> str:
         dates = [r["fetch_date"] for r in rows if r.get("provider", "lumme") == provider]
         provider_ranges[provider] = (min(dates), max(dates))
 
+    # Providers whose newest data is older than the newest data overall
+    # (e.g. a source that stopped working) — {provider: last fetch_date}
+    newest = max(latest for _, latest in provider_ranges.values())
+    stale = {p: latest for p, (_, latest) in provider_ranges.items() if latest < newest}
+
     # Latest rows per provider
     latest_rows = []
     for provider in providers:
@@ -47,7 +52,7 @@ def generate_report(path: Path = DB_PATH) -> str:
     latest_rows.sort(key=lambda r: (r.get("provider", "lumme"), r["price_start_date"]))
 
     html_parts = [_html_header(provider_ranges, providers)]
-    html_parts.append(_summary_table(latest_rows))
+    html_parts.append(_summary_table(latest_rows, stale))
 
     chart_json = _chart_data(sorted_periods)
     html_parts.append('<h2>Price History</h2>')
@@ -134,6 +139,8 @@ def _html_header(
   td:nth-child(2), th:nth-child(2) {{ text-align: left; }}
   tr:hover td {{ background: #f0e6ef; }}
   tr.hidden {{ display: none; }}
+  tr.stale td {{ color: #888; }}
+  .stale-note {{ font-size: 0.85rem; }}
   #chart {{ margin: 1rem 0 2rem; position: relative; }}
   #tooltip {{
     display: none;
@@ -182,7 +189,7 @@ def _html_header(
 """
 
 
-def _summary_table(latest_rows: list[dict]) -> str:
+def _summary_table(latest_rows: list[dict], stale: dict[str, str]) -> str:
     lines = [
         '<h2>Current Prices</h2>',
         '<table id="price-table">',
@@ -194,10 +201,17 @@ def _summary_table(latest_rows: list[dict]) -> str:
         provider = r.get("provider", "lumme")
         provider_label = provider.upper() if provider == "pks" else provider.capitalize()
         period = f"Q{r['quarter']}/{r['year']} ({start} \u2013 {end})"
+        provider_cell = escape(provider_label)
+        row_class = ""
+        if provider in stale:
+            provider_cell += (
+                f' <span class="stale-note">(last updated {escape(stale[provider])})</span>'
+            )
+            row_class = ' class="stale"'
         lines.append(
-            f'<tr data-provider="{escape(provider)}">'
+            f'<tr data-provider="{escape(provider)}"{row_class}>'
             f'<td>{escape(period)}</td>'
-            f'<td>{escape(provider_label)}</td>'
+            f'<td>{provider_cell}</td>'
             f'<td>{r["price_with_vat"]:.3f} c/kWh</td></tr>'
         )
     lines.append("</table>")
