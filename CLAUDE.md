@@ -69,6 +69,8 @@ Offerings and time periods are dynamic — never hardcode them.
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/daily.yml`):
-- Runs daily at 05:00 UTC (~8 AM Finnish time) + manual trigger
-- Fetches prices from both providers, commits `prices.db`, generates report, deploys to GitHub Pages
+- Scheduled daily at 05:00 UTC (~8 AM Finnish time) + manual trigger. GitHub starts scheduled runs late: in November 2026 they started 7–10 hours after that
+- `update` job: fetches prices from both providers, commits `prices.db`, generates the report and uploads it as the `github-pages` artifact. It checks out the branch tip (`ref: ${{ github.ref }}`), not the triggering commit, so a re-run doesn't get its push rejected
+- `deploy` job: runs `actions/deploy-pages`, waits 60 s and retries once if that fails. It is a separate job because deploy-pages finds the artifact by name and that listing can lag the upload ([actions/deploy-pages#451](https://github.com/actions/deploy-pages/issues/451)); with upload and deploy in one job it intermittently failed with "No artifacts named github-pages"
+- If `deploy` fails, use "Re-run failed jobs". "Re-run all jobs" uploads a second `github-pages` artifact to the same run, and the lookup then fails with "Multiple artifacts named github-pages"
 - Requires GitHub Pages source set to "GitHub Actions" in repo settings

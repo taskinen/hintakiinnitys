@@ -15,13 +15,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  fetch-and-publish:
+  update:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      # Check out the branch tip instead of the commit that triggered the run,
+      # so a re-run builds on the database commit an earlier attempt pushed
+      # and its push isn't rejected.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
 
       - uses: astral-sh/setup-uv@v10.4.0
 
@@ -47,6 +49,27 @@ jobs:
         with:
           path: _site
 
+  # deploy-pages looks the artifact up by name, and that listing can lag the
+  # upload by seconds or more (https://github.com/actions/deploy-pages/issues/451).
+  # A separate job puts time between upload and lookup, and lets "Re-run failed
+  # jobs" retry the deploy alone without uploading a second, same-named artifact.
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy-retry.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deploy
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Wait before retrying
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+
+      - name: Retry deploy to GitHub Pages
+        id: deploy-retry
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v5

@@ -43,9 +43,9 @@ A GitHub Actions workflow runs daily:
 
 1. Fetches the latest prices from both providers and stores them in `prices.db`
 2. Commits the updated database to the repository
-3. Generates the HTML report and deploys it to GitHub Pages
+3. Generates the HTML report and deploys it to GitHub Pages (in a separate job)
 
-The workflow can also be triggered manually from the Actions tab.
+The workflow can also be triggered manually from the Actions tab. If only the Pages deployment fails, use "Re-run failed jobs": it re-deploys the report that was already built without fetching prices again.
 
 ## Project structure
 
